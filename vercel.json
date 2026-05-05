@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/smart-api/:path*",
+      "destination": "https://smart.shopee.io/:path*"
+    }
+  ]
+}

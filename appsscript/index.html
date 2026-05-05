@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meeting Minutes Generator — SPX</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange: #EE4D2D;
+      --orange-hover: #d94428;
+      --orange-light: #fff3f0;
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --border: #e4e7ec;
+      --text: #111827;
+      --muted: #6b7280;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* Header */
+    .app-header {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+    .header-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+    }
+    .header-logo { font-size: 26px; margin-right: 12px; }
+    .header-title { font-size: 17px; font-weight: 700; line-height: 1.2; }
+    .header-sub { font-size: 12px; color: var(--muted); }
+
+    /* Main */
+    .app-main { max-width: 1120px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    .center-card { display: flex; justify-content: center; padding-top: 32px; }
+
+    /* Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      box-shadow: var(--shadow);
+    }
+    .upload-card { width: 100%; max-width: 560px; }
+    .upload-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+
+    /* Paste form */
+    .paste-form { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .paste-textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      color: var(--text);
+    }
+    .paste-textarea:focus {
+      border-color: var(--orange);
+      box-shadow: 0 0 0 3px rgba(238,77,45,.12);
+    }
+    .paste-btn { width: 100%; }
+
+    /* Divider */
+    .upload-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .upload-divider::before, .upload-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      margin-top: 16px;
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 36px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      outline: none;
+    }
+    .drop-zone:hover, .drop-zone.dragging, .drop-zone:focus {
+      border-color: var(--orange);
+      background: var(--orange-light);
+    }
+    .drop-icon { font-size: 40px; margin-bottom: 10px; }
+    .drop-text { font-weight: 600; }
+    .drop-sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+    .drop-types {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: monospace;
+      background: var(--bg);
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 99px;
+    }
+
+    /* Error */
+    .error-banner {
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      color: #b91c1c;
+      font-size: 14px;
+    }
+
+    /* Processing */
+    .processing-card { width: 100%; max-width: 420px; text-align: center; }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid var(--border);
+      border-top-color: var(--orange);
+      border-radius: 50%;
+      margin: 0 auto 24px;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .processing-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .processing-steps { margin-top: 24px; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+    .step {
+      padding: 9px 14px;
+      background: var(--orange-light);
+      color: var(--orange);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* Results */
+    .results-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .results-title { font-size: 24px; font-weight: 700; }
+    .results-meta { margin-top: 4px; font-size: 14px; color: var(--muted); }
+    .results-actions { display: flex; gap: 10px; flex-shrink: 0; }
+
+    /* Cards grid */
+    .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .span-2 { grid-column: 1 / -1; }
+
+    /* Section card */
+    .section-card { padding: 24px; }
+    .section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+    .section-icon { font-size: 18px; }
+    .section-header h3 { font-size: 15px; font-weight: 700; flex: 1; }
+    .badge {
+      background: var(--orange-light);
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+    .empty-state { color: var(--muted); font-size: 14px; font-style: italic; }
+
+    /* Item list */
+    .item-list { display: flex; flex-direction: column; gap: 10px; }
+    .item-card { display: flex; gap: 12px; padding: 12px; background: var(--bg); border-radius: 8px; align-items: flex-start; }
+    .item-number {
+      width: 24px; height: 24px; min-width: 24px;
+      background: var(--orange); color: white;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; margin-top: 5px;
+    }
+    .item-body { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .owner-tag { font-size: 12px; color: var(--muted); }
+
+    /* Editable */
+    .editable-textarea {
+      width: 100%;
+      border: 1.5px solid transparent;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      resize: vertical;
+      font-family: inherit;
+      color: var(--text);
+      background: transparent;
+      outline: none;
+      transition: border-color .15s, background .15s;
+    }
+    .editable-textarea:hover { border-color: var(--border); background: var(--bg); }
+    .editable-textarea:focus { border-color: var(--orange); background: #fff; }
+
+    .editable-input {
+      width: 100%;
+      border: 1.5px solid transparent;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      background: transparent;
+      outline: none;
+      transition: border-color .15s, background .15s;
+    }
+    .editable-input:hover { border-color: var(--border); background: var(--bg); }
+    .editable-input:focus { border-color: var(--orange); background: #fff; }
+    .editable-input.bold { font-weight: 500; }
+    .editable-input.small { font-size: 13px; color: var(--muted); }
+
+    .editable-select {
+      border: 1.5px solid transparent;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 600;
+      background: transparent;
+      outline: none;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .editable-select:hover { border-color: var(--border); background: var(--bg); }
+    .editable-select:focus { border-color: var(--orange); }
+
+    /* Action table */
+    .action-table { display: flex; flex-direction: column; gap: 6px; }
+    .action-table-header {
+      display: grid;
+      grid-template-columns: 3fr 1.5fr 1.5fr 1fr 32px;
+      gap: 8px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .action-row {
+      display: grid;
+      grid-template-columns: 3fr 1.5fr 1.5fr 1fr 32px;
+      gap: 8px;
+      align-items: center;
+      padding: 8px;
+      background: var(--bg);
+      border-radius: 8px;
+    }
+
+    /* Buttons */
+    .btn-primary {
+      background: var(--orange);
+      color: white;
+      border: none;
+      padding: 11px 24px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--orange-hover); }
+    .btn-primary:active:not(:disabled) { transform: scale(.98); }
+    .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: white;
+      color: var(--text);
+      border: 1.5px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-secondary:hover { border-color: var(--orange); color: var(--orange); }
+
+    .btn-add {
+      background: none;
+      border: 1.5px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: auto;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-add:hover { border-color: var(--orange); color: var(--orange); }
+
+    .btn-remove {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: pointer;
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px;
+      transition: background .15s, color .15s;
+      flex-shrink: 0;
+    }
+    .btn-remove:hover { background: #fef2f2; color: #b91c1c; }
+
+    .text-muted { color: var(--muted); }
+    .small { font-size: 13px; }
+
+    @media (max-width: 720px) {
+      .cards-grid { grid-template-columns: 1fr; }
+      .span-2 { grid-column: auto; }
+      .action-table-header { display: none; }
+      .action-row { grid-template-columns: 1fr 1fr; gap: 6px; }
+      .results-header { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <span class="header-logo">📋</span>
+    <div>
+      <h1 class="header-title">Meeting Minutes Generator</h1>
+      <p class="header-sub">Shopee Express · Supply Chain PM Tool · Powered by SMART</p>
+    </div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- ── Upload view ── -->
+  <div id="view-upload" class="center-card">
+    <div class="card upload-card">
+      <h2>Upload Meeting Transcript</h2>
+      <p class="text-muted">Paste your transcript or upload a file</p>
+
+      <form class="paste-form" id="paste-form">
+        <textarea
+          id="paste-input"
+          class="paste-textarea"
+          rows="7"
+          placeholder="Paste your transcript here — from Google Docs, Teams, Zoom, or anywhere…"
+        ></textarea>
+        <button type="submit" class="btn-primary paste-btn" id="paste-btn" disabled>
+          Generate Minutes
+        </button>
+      </form>
+
+      <div class="upload-divider"><span>or upload a file</span></div>
+
+      <div
+        id="drop-zone"
+        class="drop-zone"
+        role="button"
+        tabindex="0"
+        aria-label="Upload transcript file"
+      >
+        <div class="drop-icon">📄</div>
+        <p class="drop-text">Drag & drop your transcript here</p>
+        <p class="drop-sub">or click to browse files</p>
+        <p class="drop-types">.vtt &nbsp;·&nbsp; .txt &nbsp;·&nbsp; .docx</p>
+        <input id="file-input" type="file" accept=".vtt,.txt,.docx" style="display:none" />
+      </div>
+
+      <div id="error-banner" class="error-banner" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ── Processing view ── -->
+  <div id="view-processing" class="center-card" style="display:none">
+    <div class="card processing-card">
+      <div class="spinner"></div>
+      <h2>Generating Minutes…</h2>
+      <p class="text-muted">Analysing your transcript with SMART</p>
+      <div class="processing-steps">
+        <div class="step">📝 Reading transcript</div>
+        <div class="step">🧠 Extracting decisions & action items</div>
+        <div class="step">✅ Structuring meeting minutes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Results view ── -->
+  <div id="view-results" style="display:none">
+    <div class="results-header">
+      <div>
+        <h2 class="results-title" id="results-title">Meeting Minutes</h2>
+        <p class="results-meta text-muted" id="results-meta"></p>
+      </div>
+      <div class="results-actions">
+        <button class="btn-secondary" onclick="resetToUpload()">↑ New Transcript</button>
+        <button class="btn-secondary" id="copy-btn" onclick="copyToClipboard()">📋 Copy Text</button>
+      </div>
+    </div>
+
+    <div class="cards-grid">
+
+      <!-- Summary -->
+      <section class="card section-card span-2">
+        <div class="section-header">
+          <span class="section-icon">📝</span>
+          <h3>Summary</h3>
+        </div>
+        <textarea id="summary-text" class="editable-textarea" rows="6" placeholder="Meeting summary…"></textarea>
+      </section>
+
+      <!-- Key Decisions -->
+      <section class="card section-card">
+        <div class="section-header">
+          <span class="section-icon">✅</span>
+          <h3>Key Decisions</h3>
+          <span class="badge" id="decisions-badge">0</span>
+        </div>
+        <div class="item-list" id="decisions-list"></div>
+      </section>
+
+      <!-- Open Questions -->
+      <section class="card section-card">
+        <div class="section-header">
+          <span class="section-icon">❓</span>
+          <h3>Open Questions</h3>
+          <span class="badge" id="questions-badge">0</span>
+        </div>
+        <div class="item-list" id="questions-list"></div>
+      </section>
+
+      <!-- Action Items -->
+      <section class="card section-card span-2">
+        <div class="section-header">
+          <span class="section-icon">⚡</span>
+          <h3>Action Items</h3>
+          <span class="badge" id="actions-badge">0</span>
+          <button class="btn-add" onclick="addActionItem()">+ Add</button>
+        </div>
+        <div id="action-items-container"></div>
+      </section>
+
+    </div>
+  </div>
+
+</main>
+
+<!-- mammoth for .docx parsing -->
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1/mammoth.browser.min.js"></script>
+
+<script>
+  const PRIORITY_COLORS = { high: '#dc2626', medium: '#d97706', low: '#16a34a' };
+  let currentData = null;
+
+  // ── Views ──────────────────────────────────────────────────────────
+  function showView(id) {
+    ['upload', 'processing', 'results'].forEach(function(v) {
+      document.getElementById('view-' + v).style.display = (v === id) ? '' : 'none';
+    });
+  }
+
+  // ── Paste form ─────────────────────────────────────────────────────
+  var pasteInput = document.getElementById('paste-input');
+  var pasteBtn   = document.getElementById('paste-btn');
+
+  pasteInput.addEventListener('input', function() {
+    pasteBtn.disabled = !pasteInput.value.trim();
+  });
+
+  document.getElementById('paste-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var text = pasteInput.value.trim();
+    if (!text) return;
+    processTranscript(text);
+  });
+
+  // ── File upload ────────────────────────────────────────────────────
+  var dropZone  = document.getElementById('drop-zone');
+  var fileInput = document.getElementById('file-input');
+
+  dropZone.addEventListener('click', function() { fileInput.click(); });
+  dropZone.addEventListener('keydown', function(e) { if (e.key === 'Enter') fileInput.click(); });
+  dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('dragging'); });
+  dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('dragging'); });
+  dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('dragging');
+    handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', function(e) { handleFile(e.target.files[0]); });
+
+  function handleFile(file) {
+    if (!file) return;
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (['vtt', 'txt', 'docx'].indexOf(ext) === -1) {
+      showError('Unsupported file type ".' + ext + '". Please upload .vtt, .txt, or .docx');
+      return;
+    }
+    clearError();
+    if (ext === 'docx') {
+      file.arrayBuffer().then(function(buf) {
+        return mammoth.extractRawText({ arrayBuffer: buf });
+      }).then(function(result) {
+        if (!result.value.trim()) throw new Error('File appears empty or has no readable text.');
+        processTranscript(result.value);
+      }).catch(function(err) { showError(err.message); });
+    } else {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var text = e.target.result;
+        if (ext === 'vtt') text = parseVtt(text);
+        if (!text.trim()) { showError('File appears empty or has no readable text.'); return; }
+        processTranscript(text);
+      };
+      reader.onerror = function() { showError('Failed to read file.'); };
+      reader.readAsText(file);
+    }
+  }
+
+  function parseVtt(raw) {
+    return raw.split('\n').filter(function(line) {
+      var t = line.trim();
+      return t && t !== 'WEBVTT' && !t.startsWith('NOTE') && !t.startsWith('STYLE') &&
+        !/^\d{2}:\d{2}:\d{2}[.,]\d{3}\s+-->\s+/.test(t) && !/^\d+$/.test(t);
+    }).join('\n');
+  }
+
+  // ── Process ────────────────────────────────────────────────────────
+  function processTranscript(text) {
+    clearError();
+    showView('processing');
+    google.script.run
+      .withSuccessHandler(onSuccess)
+      .withFailureHandler(onError)
+      .generateMinutes(text);
+  }
+
+  function onSuccess(jsonStr) {
+    try {
+      currentData = JSON.parse(jsonStr);
+      renderResults(currentData);
+      showView('results');
+    } catch(e) {
+      showView('upload');
+      showError('Agent returned an unexpected format. Please try again.');
+    }
+  }
+
+  function onError(err) {
+    showView('upload');
+    showError((err && err.message) || 'Something went wrong. Please try again.');
+  }
+
+  // ── Render results ─────────────────────────────────────────────────
+  function renderResults(data) {
+    document.getElementById('results-title').textContent = data.title || 'Meeting Minutes';
+
+    var meta = [];
+    if (data.date) meta.push(data.date);
+    if (data.participants && data.participants.length) {
+      var names = data.participants.slice(0, 5).join(', ');
+      if (data.participants.length > 5) names += ' +' + (data.participants.length - 5) + ' more';
+      meta.push(names);
+    }
+    document.getElementById('results-meta').textContent = meta.join(' · ');
+    document.getElementById('summary-text').value = data.summary || '';
+
+    renderDecisions(data.keyDecisions || []);
+    renderQuestions(data.openQuestions || []);
+    renderActionItems(data.actionItems || []);
+  }
+
+  function renderDecisions(items) {
+    document.getElementById('decisions-badge').textContent = items.length;
+    var el = document.getElementById('decisions-list');
+    if (!items.length) { el.innerHTML = '<p class="empty-state">No decisions recorded</p>'; return; }
+    el.innerHTML = items.map(function(d, i) {
+      return '<div class="item-card">' +
+        '<div class="item-number">' + (i + 1) + '</div>' +
+        '<div class="item-body">' +
+          '<input class="editable-input bold" value="' + esc(d.decision) + '" placeholder="Decision…" />' +
+          (d.rationale ? '<input class="editable-input small text-muted" value="' + esc(d.rationale) + '" placeholder="Rationale…" />' : '') +
+          (d.owner ? '<span class="owner-tag">👤 ' + esc(d.owner) + '</span>' : '') +
+        '</div></div>';
+    }).join('');
+  }
+
+  function renderQuestions(items) {
+    document.getElementById('questions-badge').textContent = items.length;
+    var el = document.getElementById('questions-list');
+    if (!items.length) { el.innerHTML = '<p class="empty-state">No open questions</p>'; return; }
+    el.innerHTML = items.map(function(q, i) {
+      return '<div class="item-card">' +
+        '<div class="item-number">' + (i + 1) + '</div>' +
+        '<div class="item-body">' +
+          '<input class="editable-input bold" value="' + esc(q.question) + '" placeholder="Question…" />' +
+          (q.context ? '<span class="text-muted small">' + esc(q.context) + '</span>' : '') +
+          (q.raisedBy ? '<span class="owner-tag">👤 ' + esc(q.raisedBy) + '</span>' : '') +
+        '</div></div>';
+    }).join('');
+  }
+
+  function renderActionItems(items) {
+    document.getElementById('actions-badge').textContent = items.length;
+    var el = document.getElementById('action-items-container');
+    if (!items.length) { el.innerHTML = '<p class="empty-state">No action items recorded</p>'; return; }
+    el.innerHTML = '<div class="action-table">' +
+      '<div class="action-table-header"><span>Task</span><span>Owner</span><span>Deadline</span><span>Priority</span><span></span></div>' +
+      items.map(function(item, i) { return buildActionRow(item, i); }).join('') +
+      '</div>';
+    wireRemoveButtons();
+  }
+
+  function buildActionRow(item, i) {
+    var color = PRIORITY_COLORS[item.priority] || PRIORITY_COLORS.medium;
+    return '<div class="action-row">' +
+      '<input class="editable-input" value="' + esc(item.task) + '" placeholder="Task…" />' +
+      '<input class="editable-input" value="' + esc(item.owner) + '" placeholder="Owner" />' +
+      '<input class="editable-input" value="' + esc(item.deadline) + '" placeholder="Deadline" />' +
+      '<select class="editable-select" style="color:' + color + '" onchange="this.style.color=({high:\'#dc2626\',medium:\'#d97706\',low:\'#16a34a\'})[this.value]||\'#d97706\'">' +
+        '<option value="high"' + (item.priority === 'high' ? ' selected' : '') + '>High</option>' +
+        '<option value="medium"' + (item.priority === 'medium' ? ' selected' : '') + '>Medium</option>' +
+        '<option value="low"' + (item.priority === 'low' ? ' selected' : '') + '>Low</option>' +
+      '</select>' +
+      '<button class="btn-remove" title="Remove">×</button>' +
+    '</div>';
+  }
+
+  function wireRemoveButtons() {
+    document.querySelectorAll('.action-row .btn-remove').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        btn.closest('.action-row').remove();
+        document.getElementById('actions-badge').textContent =
+          document.querySelectorAll('.action-row').length;
+      });
+    });
+  }
+
+  function addActionItem() {
+    var table = document.querySelector('.action-table');
+    if (!table) {
+      renderActionItems([{ task: '', owner: 'TBD', deadline: 'TBD', priority: 'medium' }]);
+      return;
+    }
+    var div = document.createElement('div');
+    div.innerHTML = buildActionRow({ task: '', owner: 'TBD', deadline: 'TBD', priority: 'medium' }, 0);
+    var row = div.firstElementChild;
+    row.querySelector('.btn-remove').addEventListener('click', function() {
+      row.remove();
+      document.getElementById('actions-badge').textContent =
+        document.querySelectorAll('.action-row').length;
+    });
+    table.appendChild(row);
+    document.getElementById('actions-badge').textContent =
+      document.querySelectorAll('.action-row').length;
+  }
+
+  // ── Copy to clipboard ──────────────────────────────────────────────
+  function copyToClipboard() {
+    var data = collectCurrentData();
+    var text = formatAsText(data);
+    navigator.clipboard.writeText(text).then(function() {
+      var btn = document.getElementById('copy-btn');
+      btn.textContent = '✓ Copied!';
+      setTimeout(function() { btn.textContent = '📋 Copy Text'; }, 2000);
+    });
+  }
+
+  function collectCurrentData() {
+    var decisions = Array.from(document.querySelectorAll('#decisions-list .item-card')).map(function(card) {
+      var inputs = card.querySelectorAll('input');
+      return { decision: inputs[0] ? inputs[0].value : '', rationale: inputs[1] ? inputs[1].value : null };
+    });
+    var questions = Array.from(document.querySelectorAll('#questions-list .item-card')).map(function(card) {
+      var inputs = card.querySelectorAll('input');
+      return { question: inputs[0] ? inputs[0].value : '' };
+    });
+    var actionItems = Array.from(document.querySelectorAll('.action-row')).map(function(row) {
+      var inputs = row.querySelectorAll('input');
+      var sel = row.querySelector('select');
+      return {
+        task: inputs[0] ? inputs[0].value : '',
+        owner: inputs[1] ? inputs[1].value : '',
+        deadline: inputs[2] ? inputs[2].value : '',
+        priority: sel ? sel.value : 'medium'
+      };
+    });
+    return {
+      title: document.getElementById('results-title').textContent,
+      date: currentData ? currentData.date : null,
+      participants: currentData ? currentData.participants : [],
+      summary: document.getElementById('summary-text').value,
+      keyDecisions: decisions,
+      actionItems: actionItems,
+      openQuestions: questions
+    };
+  }
+
+  function formatAsText(data) {
+    var lines = [];
+    lines.push('# ' + (data.title || 'Meeting Minutes'));
+    if (data.date) lines.push('Date: ' + data.date);
+    if (data.participants && data.participants.length) lines.push('Participants: ' + data.participants.join(', '));
+    lines.push('');
+    lines.push('## Summary');
+    lines.push(data.summary || '');
+    lines.push('');
+    if (data.keyDecisions && data.keyDecisions.length) {
+      lines.push('## Key Decisions');
+      data.keyDecisions.forEach(function(d, i) {
+        lines.push((i + 1) + '. ' + d.decision);
+        if (d.rationale) lines.push('   Rationale: ' + d.rationale);
+      });
+      lines.push('');
+    }
+    if (data.actionItems && data.actionItems.length) {
+      lines.push('## Action Items');
+      data.actionItems.forEach(function(a, i) {
+        lines.push((i + 1) + '. [' + (a.priority || 'medium').toUpperCase() + '] ' + a.task);
+        lines.push('   Owner: ' + a.owner + '  |  Deadline: ' + a.deadline);
+      });
+      lines.push('');
+    }
+    if (data.openQuestions && data.openQuestions.length) {
+      lines.push('## Open Questions');
+      data.openQuestions.forEach(function(q, i) {
+        lines.push((i + 1) + '. ' + q.question);
+      });
+    }
+    return lines.join('\n');
+  }
+
+  // ── Utils ──────────────────────────────────────────────────────────
+  function esc(str) {
+    return (str || '').toString()
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function showError(msg) {
+    var el = document.getElementById('error-banner');
+    el.textContent = '⚠️ ' + msg;
+    el.style.display = '';
+  }
+
+  function clearError() {
+    document.getElementById('error-banner').style.display = 'none';
+  }
+
+  function resetToUpload() {
+    showView('upload');
+    clearError();
+  }
+</script>
+
+</body>
+</html>
