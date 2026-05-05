@@ -1,6 +1,6 @@
 const SMART_AGENT_GROUP_ID = 27941
-const SMART_INVOKE_URL = '/smart-api/apis/smart/v1/orchestrator/platform/invoke'
-const SMART_DEBUG_TREE_URL = '/smart-api/apis/smart/v1/orchestrator/get_debug_tree'
+const SMART_INVOKE_URL = '/api/invoke'
+const SMART_DEBUG_TREE_URL = '/api/debug-tree'
 
 function makeThreadId() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'

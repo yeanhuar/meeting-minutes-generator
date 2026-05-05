@@ -6,11 +6,15 @@ export default defineConfig({
   base: './',
   server: {
     proxy: {
-      '/smart-api': {
+      '/api/invoke': {
         target: 'https://smart.shopee.io',
         changeOrigin: true,
-        cookieDomainRewrite: 'localhost',
-        rewrite: (path) => path.replace(/^\/smart-api/, ''),
+        rewrite: () => '/apis/smart/v1/orchestrator/platform/invoke',
+      },
+      '/api/debug-tree': {
+        target: 'https://smart.shopee.io',
+        changeOrigin: true,
+        rewrite: () => '/apis/smart/v1/orchestrator/get_debug_tree',
       },
     },
   },
