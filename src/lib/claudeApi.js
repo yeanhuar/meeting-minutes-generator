@@ -16,8 +16,7 @@ function extractAnswer(data) {
   return finalAi?.content || null
 }
 
-async function pollDebugTree(threadId, token, { intervalMs = 2000, timeoutMs = 120_000 } = {}) {
-  const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+async function pollDebugTree(threadId, { intervalMs = 2000, timeoutMs = 120_000 } = {}) {
   const deadline = Date.now() + timeoutMs
   const bodyStr = JSON.stringify({
     agent_group_id: SMART_AGENT_GROUP_ID,
@@ -33,8 +32,7 @@ async function pollDebugTree(threadId, token, { intervalMs = 2000, timeoutMs = 1
 
     const res = await fetch(SMART_DEBUG_TREE_URL, {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', Authorization: authHeader },
+      headers: { 'Content-Type': 'application/json' },
       body: bodyStr,
     })
 
@@ -51,14 +49,12 @@ async function pollDebugTree(threadId, token, { intervalMs = 2000, timeoutMs = 1
   throw new Error('Timed out waiting for agent response after 2 minutes.')
 }
 
-export async function generateMinutes(transcript, token) {
-  const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+export async function generateMinutes(transcript) {
   const threadId = makeThreadId()
 
   const res = await fetch(SMART_INVOKE_URL, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', Authorization: authHeader },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       is_live_app_permission_check: true,
       source_agent_group_id: SMART_AGENT_GROUP_ID,
@@ -81,5 +77,5 @@ export async function generateMinutes(transcript, token) {
     throw new Error('SMART invoke failed: ' + JSON.stringify(invokeData).slice(0, 300))
   }
 
-  return pollDebugTree(returnedThreadId, token)
+  return pollDebugTree(returnedThreadId)
 }
