@@ -2,7 +2,6 @@ const SMART_AGENT_GROUP_ID = 27941
 const SMART_BASE = 'https://smart.shopee.io'
 const SMART_INVOKE_URL = `${SMART_BASE}/apis/smart/v1/orchestrator/platform/invoke`
 const SMART_DEBUG_TREE_URL = `${SMART_BASE}/apis/smart/v1/orchestrator/get_debug_tree`
-const TOKEN = import.meta.env.VITE_SMART_TOKEN
 
 function makeThreadId() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -18,7 +17,7 @@ function extractAnswer(data) {
   return finalAi?.content || null
 }
 
-async function pollDebugTree(threadId, { intervalMs = 2000, timeoutMs = 120_000 } = {}) {
+async function pollDebugTree(threadId, token, { intervalMs = 2000, timeoutMs = 120_000 } = {}) {
   const deadline = Date.now() + timeoutMs
   const body = JSON.stringify({
     agent_group_id: SMART_AGENT_GROUP_ID,
@@ -34,7 +33,7 @@ async function pollDebugTree(threadId, { intervalMs = 2000, timeoutMs = 120_000 
     const res = await fetch(SMART_DEBUG_TREE_URL, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body,
     })
     if (!res.ok) continue
@@ -48,12 +47,14 @@ async function pollDebugTree(threadId, { intervalMs = 2000, timeoutMs = 120_000 
   throw new Error('Timed out waiting for agent response after 2 minutes.')
 }
 
-export async function generateMinutes(transcript) {
+export async function generateMinutes(transcript, token) {
+  const authToken = import.meta.env.VITE_SMART_TOKEN || token
   const threadId = makeThreadId()
+
   const res = await fetch(SMART_INVOKE_URL, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
     body: JSON.stringify({
       is_live_app_permission_check: true,
       source_agent_group_id: SMART_AGENT_GROUP_ID,
@@ -74,5 +75,5 @@ export async function generateMinutes(transcript) {
     throw new Error('SMART invoke failed: ' + JSON.stringify(invokeData).slice(0, 300))
   }
 
-  return pollDebugTree(invokeData?.data?.thread_id || threadId)
+  return pollDebugTree(invokeData?.data?.thread_id || threadId, authToken)
 }

@@ -2,31 +2,44 @@ import { useState, useCallback } from 'react'
 import TranscriptUploader from './components/TranscriptUploader.jsx'
 import ProcessingView from './components/ProcessingView.jsx'
 import MinutesDisplay from './components/MinutesDisplay.jsx'
+import TokenInput from './components/TokenInput.jsx'
 import { parseTranscript } from './lib/parseTranscript.js'
 import { generateMinutes } from './lib/claudeApi.js'
 import { parseMinutesMarkdown } from './lib/parseMinutes.js'
 
-const STEPS = { UPLOAD: 'upload', PROCESSING: 'processing', RESULTS: 'results' }
+const STEPS = { SETUP: 'setup', UPLOAD: 'upload', PROCESSING: 'processing', RESULTS: 'results' }
+const TOKEN_KEY = 'smart_bearer_token'
+const HAS_BUILTIN_TOKEN = !!import.meta.env.VITE_SMART_TOKEN
 
 export default function App() {
-  const [step, setStep] = useState(STEPS.UPLOAD)
+  const [step, setStep] = useState(() => {
+    if (HAS_BUILTIN_TOKEN) return STEPS.UPLOAD
+    return localStorage.getItem(TOKEN_KEY) ? STEPS.UPLOAD : STEPS.SETUP
+  })
+  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '')
   const [minutes, setMinutes] = useState(null)
   const [error, setError] = useState(null)
   const [fileName, setFileName] = useState('')
+
+  const handleTokenSubmit = (t) => {
+    localStorage.setItem(TOKEN_KEY, t)
+    setToken(t)
+    setStep(STEPS.UPLOAD)
+  }
 
   const process = useCallback(async (transcript, name) => {
     setError(null)
     setFileName(name)
     setStep(STEPS.PROCESSING)
     try {
-      const rawMarkdown = await generateMinutes(transcript)
+      const rawMarkdown = await generateMinutes(transcript, localStorage.getItem(TOKEN_KEY) || token)
       setMinutes(parseMinutesMarkdown(rawMarkdown))
       setStep(STEPS.RESULTS)
     } catch (err) {
       setError(err.message)
       setStep(STEPS.UPLOAD)
     }
-  }, [])
+  }, [token])
 
   const handleFileUpload = useCallback(async (file) => {
     const transcript = await parseTranscript(file).catch((err) => { throw err })
@@ -60,6 +73,9 @@ export default function App() {
       </header>
 
       <main className="app-main">
+        {step === STEPS.SETUP && (
+          <TokenInput initialToken={token} onSubmit={handleTokenSubmit} />
+        )}
         {step === STEPS.UPLOAD && (
           <TranscriptUploader onUpload={handleFileUpload} onPasteText={handlePasteText} error={error} />
         )}
